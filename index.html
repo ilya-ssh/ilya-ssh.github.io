@@ -1,437 +1,306 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Северсталь mermaid редактор</title>
-  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Portfolio · Neo-Retro ASCII</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Playfair+Display:wght@400;600;700&display=swap"
+    rel="stylesheet"
+  />
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    textarea { width: 100%; height: 150px; margin-bottom: 10px; }
-    #svgContainer { position: relative; display: inline-block; }
-    svg { border: 1px solid #ccc; }
-    #controls {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(255,255,255,0.9);
-      padding: 5px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      z-index: 10;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html,
+    body {
+      min-height: 100%;
+      background: #000;
+      scroll-behavior: smooth;
+      font-family: 'Playfair Display', serif;
+      color: #fff;
     }
-    #controls button { margin-right: 5px; }
-    .node rect { fill: white; stroke: black; stroke-width: 1.5px; }
-    .node text { fill: black; font-size: 20px; pointer-events: none; }
-    .link-visible { fill: none; stroke: #999; stroke-opacity: 0.6; stroke-width: 1.5px; }
-    .link-hit { fill: none; stroke: transparent; stroke-width: 30px; pointer-events: all; }
-    .selected { stroke: red !important; stroke-width: 3px !important; }
-    .link-group.selected .link-visible {
-      stroke: red !important;
-      stroke-width: 3px !important;
+
+    nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 14px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0,0,0,0.7);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity .4s ease;
+  }
+
+    nav:hover {
+      opacity: 1;
+    }
+
+    .logo { font-weight: 700; font-size: 1.2rem; letter-spacing: 2px; }
+    ul.nav-links {
+      display: flex;
+      gap: 36px;
+      list-style: none;
+    }
+    ul.nav-links a {
+      color: #fff;
+      text-decoration: none;
+      font-size: 1rem;
+      position: relative;
+    }
+    ul.nav-links a::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: -3px;
+      width: 0;
+      height: 2px;
+      background: #fff;
+      transition: .3s;
+    }
+    ul.nav-links a:hover::after { width: 100%; }
+
+    body {}
+
+    #grid-wrap {
+      position: relative;
+      width: 100%;
+      height: 110vh;
+      overflow: hidden;
+    }
+    #grid-bg,
+    #grid-canvas {
+      position: absolute;
+      top: -6vh;
+      left: -6vw;
+      width: 112vw;
+      height: 122vh;
+      pointer-events: none;
+    }
+    #grid-bg {
+      background: #000;
+      mix-blend-mode: color-dodge;
+    }
+    #grid-canvas {
+      mix-blend-mode: lighten;
+    }
+    .hero-title {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'Playfair Display', serif;
+      font-size: 3rem;
+      font-weight: 700;
+      text-align: center;
+      z-index: 3;
+      letter-spacing: 4px;
+    }
+    main {
+      background: #000;
+      padding: 120px 6vw 180px;
+      margin-top: -10vh;
+    }
+    section {
+      max-width: 900px;
+      margin: 0 auto 160px;
+    }
+    h2 {
+      font-size: 2rem;
+      margin-bottom: 1em;
+      font-weight: 600;
+      text-align: center;
+    }
+    p {
+      font-size: 1.1rem;
+      line-height: 1.7;
+      text-align: center;
+    }
+    .project {
+      margin-bottom: 60px;
+      text-align: left;
+    }
+    .project h3 {
+      font-size: 1.3rem;
+      margin-bottom: .25em;
+      color: #fff;
+      font-weight: 600;
+    }
+    .project p {
+      font-size: .95rem;
+      margin-bottom: 1em;
+      color: #ff;
+    }
+    .project a {
+      display: inline-block;
+      padding: 6px 18px;
+      border: 1px solid #fff;
+      color: #fff;
+      text-decoration: none;
+      font-size: .85rem;
+      transition: .3s;
+      border-radius: 2px;
+    }
+    .project a:hover {
+      background: #fff;
+      color: #000;
+      border-color: #fff;
     }
   </style>
 </head>
 <body>
-  <div>
-    <h2>Северсталь mermaid редактор</h2>
-    <textarea id="inputCode">graph TD;
-A[Hello] --> B(World!)
-</textarea>
-    <br>
-    <button id="loadCodeBtn">Загрузить код mermaid</button>
-  </div>
-  <div id="svgContainer">
-    <div id="controls">
-      <button id="newNodeBtn">новый (создать новый блок) (N)</button>
-      <button id="deleteBtn">удалить (удалить стрелку или блок) (Del)</button>
-      <button id="linkBtn">связать (связать два блока) (Q)</button>
-    </div>
-    <svg width="1200" height="800">
-      <defs>
-        <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-          <path d="M 20 0 L 0 0 0 20" fill="none" stroke="gray" stroke-width="0.5"/>
-        </pattern>
-        <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto">
-          <path d="M0,0 L10,5 L0,10 z" fill="black" />
-        </marker>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#grid)" />
-      <g id="zoomContainer"></g>
-    </svg>
-  </div>
-  <div>
-    <h2>Сгенерированный код</h2>
-    <textarea id="generatedCode" readonly></textarea>
-  </div>
+  <nav>
+    <div class="logo">Ilyassh</div>
+    <ul class="nav-links">
+      <li><a href="#about">About</a></li>
+      <li><a href="#projects">Projects</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+  </nav>
+
+  <header id="grid-wrap">
+    <div id="grid-bg"></div>
+    <canvas id="grid-canvas"></canvas>
+    <h1 class="hero-title">MY PORTFOLIO</h1>
+  </header>
+
+  <main>
+    <section id="about">
+      <h2>About Me</h2>
+      <p>Hello! I'm <strong>Your Name</strong>, a creative developer blending code, design, and storytelling to craft immersive, high-performance web experiences.</p>
+    </section>
+
+    <section id="projects">
+      <h2>Selected Projects</h2>
+      <div class="project">
+        <h3>🌐 WebGL Data Galaxy</h3>
+        <p>Interactive 3D data-viz turning big data into a navigable star-field.</p>
+        <a href="#">Read more</a>
+      </div>
+      <div class="project">
+        <h3>💡 TinyAI Toolkit</h3>
+        <p>Ultra-light ML utilities optimised for edge devices and micro-controllers.</p>
+        <a href="#">Read more</a>
+      </div>
+      <div class="project">
+        <h3>🎮 Retro Game Jam Winner</h3>
+        <p>A 48-hour pixel platformer awarded «Best Gameplay» in RetroJam.</p>
+        <a href="#">Read more</a>
+      </div>
+    </section>
+
+    <section id="contact">
+      <h2>Contact</h2>
+      <p>Email: <a href="mailto:you@example.com" style="color:#86a8ff">you@example.com</a> — GitHub:
+        <a href="https://github.com/you" target="_blank" style="color:#86a8ff">@you</a>
+      </p>
+    </section>
+  </main>
+
   <script>
-    const svg = d3.select("svg");
-    const zoomContainer = d3.select("#zoomContainer");
-    const width = +svg.attr("width");
-    const height = +svg.attr("height");
-    let nodes = [];
-    let links = [];
-    let selectedElements = [];
-    const padding = 10;
-    
-    let linkGroup = zoomContainer.append("g").attr("class", "links");
-    let nodeGroup = zoomContainer.append("g").attr("class", "nodes");
-    let linkSelection, nodeSelection;
-    
-    const zoom = d3.zoom()
-      .scaleExtent([0.5, 2])
-      .on("zoom", (event) => {
-        zoomContainer.attr("transform", event.transform);
-      });
-    svg.call(zoom).on("click.zoom", null);
-    
-    function wrapLabel(label, maxChars) {
-      const words = label.split(" ");
-      const lines = [];
-      let currentLine = "";
-      words.forEach(word => {
-        if ((currentLine.length + word.length) > maxChars) {
-          if (currentLine.length > 0) {
-            lines.push(currentLine.trim());
-            currentLine = word + " ";
-          } else {
-            for (let i = 0; i < word.length; i += maxChars) {
-              lines.push(word.substring(i, i + maxChars));
-            }
-            currentLine = "";
-          }
-        } else {
-          currentLine += word + " ";
-        }
-      });
-      if (currentLine.trim().length > 0) lines.push(currentLine.trim());
-      return lines;
-    }
-    
-    function computeLayers() {
-      nodes.forEach(n => n.layer = 0);
-      let updated = true;
-      while (updated) {
-        updated = false;
-        links.forEach(link => {
-          let newLayer = link.source.layer + 1;
-          if (newLayer > link.target.layer) {
-            link.target.layer = newLayer;
-            updated = true;
-          }
-        });
+    const bg = document.getElementById('grid-bg');
+    const CELL = 11;
+    let COLS = 0, ROWS = 0, gradCache = [];
+
+    const hsl = (h, s, l) => `hsl(${h},${s}%,${l}%)`;
+
+    function buildGradRow(y) {
+      let parts = [], pct = 0, step = 100 / COLS;
+      for (let x = 0; x < COLS + 6; x += 2) {
+        const w = (Math.sin((x + y) * 0.06) + 1) / 2;
+        parts.push(
+          `${hsl(200 + w * 120, 60, 18 + w * 6)} ${pct}%`,
+          `${hsl(200 + w * 120, 60, 18 + w * 6)} ${(pct += step * 2)}%`
+        );
       }
+      return `linear-gradient(90deg,${parts.join(',')})`;
     }
-    
-    function assignLayout() {
-      computeLayers();
-      const layers = {};
-      nodes.forEach(n => {
-        if (!layers[n.layer]) layers[n.layer] = [];
-        layers[n.layer].push(n);
-      });
-      const layerIndices = Object.keys(layers).map(Number).sort((a, b) => a - b);
-      const rankSep = 150;
-      const nodeSep = 50;
-      layerIndices.forEach(layer => {
-        const layerNodes = layers[layer];
-        layerNodes.forEach(n => {
-          n.estimatedWidth = n.width ? n.width : Math.max(80, n.label.length * 10 + padding * 2);
-        });
-        if (layer > 0) {
-          layerNodes.sort((a, b) => {
-            const aParents = links.filter(l => l.target.id === a.id).map(l => l.source.x);
-            const bParents = links.filter(l => l.target.id === b.id).map(l => l.source.x);
-            const aMedian = aParents.length ? aParents.sort((x, y) => x - y)[Math.floor(aParents.length / 2)] : 0;
-            const bMedian = bParents.length ? bParents.sort((x, y) => x - y)[Math.floor(bParents.length / 2)] : 0;
-            return aMedian - bMedian;
-          });
-        } else {
-          layerNodes.sort((a, b) => a.id.localeCompare(b.id));
-        }
-        let currentX = 0;
-        layerNodes.forEach((node, i) => {
-          if (i === 0) {
-            node.x = node.estimatedWidth / 2;
-          } else {
-            const prev = layerNodes[i - 1];
-            node.x = prev.x + prev.estimatedWidth / 2 + nodeSep + node.estimatedWidth / 2;
-          }
-        });
-        const leftEdge = layerNodes[0].x - layerNodes[0].estimatedWidth / 2;
-        const rightEdge = layerNodes[layerNodes.length - 1].x + layerNodes[layerNodes.length - 1].estimatedWidth / 2;
-        const totalLayerWidth = rightEdge - leftEdge;
-        const offsetX = (width - totalLayerWidth) / 2 - leftEdge;
-        layerNodes.forEach(node => {
-          node.x += offsetX;
-          node.y = (layer + 1) * rankSep;
-        });
-      });
+
+    function ensureGradCache() {
+      gradCache = Array.from({ length: ROWS }, (_, y) => buildGradRow(y));
     }
-    
-    function computeIntersection(source, target) {
-      const cx = target.x, cy = target.y;
-      const dx = source.x - target.x;
-      const dy = source.y - target.y;
-      const halfW = target.width / 2, halfH = target.height / 2;
-      let tx = dx !== 0 ? (dx > 0 ? halfW / dx : -halfW / dx) : Infinity;
-      let ty = dy !== 0 ? (dy > 0 ? halfH / dy : -halfH / dy) : Infinity;
-      const t = Math.min(tx, ty);
-      return { x: target.x + dx * t, y: target.y + dy * t };
+
+    function updateBG() {
+      bg.style.backgroundImage = gradCache.join(',');
+      bg.style.backgroundSize = `100% ${CELL}px`;
     }
-    
-    function linkPath(d) {
-      const pt = computeIntersection(d.source, d.target);
-      return `M ${d.source.x},${d.source.y} L ${pt.x},${pt.y}`;
+
+    function resizeBG() {
+      COLS = Math.ceil(window.innerWidth / CELL) + 6;
+      ROWS = Math.ceil(window.innerHeight * 1.1 / CELL);
+      ensureGradCache();
+      updateBG();
     }
-    
-    function updatePositions() {
-      linkSelection.select(".link-hit").attr("d", d => linkPath(d));
-      linkSelection.select(".link-visible").attr("d", d => linkPath(d));
-      nodeSelection.attr("transform", d => `translate(${d.x}, ${d.y})`);
+
+    window.addEventListener('resize', resizeBG);
+    resizeBG();
+
+    const canvas = document.getElementById('grid-canvas');
+    const ctx    = canvas.getContext('2d');
+    const NOISE_S = 0.08;
+    const PAL_LOW  = ' .`:-';
+    const PAL_MID  = 'НКРЯ';
+    const PAL_HIGH = 'NLP';
+
+    function resizeCanvas() {
+      const w = window.innerWidth * 1.12;
+      const h = window.innerHeight * 1.22;
+      canvas.width  = Math.ceil(w / CELL) * CELL;
+      canvas.height = Math.ceil(h / CELL) * CELL;
     }
-    
-    function clearSelection() {
-      selectedElements = [];
-      d3.selectAll(".selected").classed("selected", false);
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    let last = 0, acc = 0;
+    const FRAME = 1000 / 10; 
+
+    function noise(x, y, s) {
+      return Math.sin((x * 12.9898 + y * 78.233 + s) * 43758.5453) % 1;
     }
-    
-    function toggleNodeSelection(d, element) {
-      const index = selectedElements.indexOf(d);
-      if (index === -1) {
-        selectedElements.push(d);
-        element.select("rect").classed("selected", true);
-      } else {
-        selectedElements.splice(index, 1);
-        element.select("rect").classed("selected", false);
-      }
-    }
-    
-    function toggleLinkSelection(d, element) {
-      const index = selectedElements.indexOf(d);
-      if (index === -1) {
-        selectedElements.push(d);
-        element.classed("selected", true);
-      } else {
-        selectedElements.splice(index, 1);
-        element.classed("selected", false);
-      }
-    }
-    
-    function updateGraph() {
-      nodeGroup.selectAll("*").remove();
-      linkGroup.selectAll("*").remove();
-      linkSelection = linkGroup.selectAll("g.link-group")
-        .data(links, d => d.source.id + "-" + d.target.id);
-      linkSelection.exit().remove();
-      const linkEnter = linkSelection.enter().append("g")
-        .attr("class", "link-group");
-      linkEnter.append("path")
-        .attr("class", "link-hit")
-        .attr("d", d => linkPath(d))
-        .on("click", function(event, d) {
-          event.stopPropagation();
-          toggleLinkSelection(d, d3.select(this.parentNode));
-        });
-      linkEnter.append("path")
-        .attr("class", "link-visible")
-        .attr("d", d => linkPath(d))
-        .attr("marker-end", "url(#arrow)");
-      linkSelection = linkEnter.merge(linkSelection);
-      nodeSelection = nodeGroup.selectAll("g.node")
-        .data(nodes, d => d.id);
-      nodeSelection.exit().remove();
-      const nodeEnter = nodeSelection.enter().append("g")
-        .attr("class", "node")
-        .call(d3.drag()
-          .on("start", dragstarted)
-          .on("drag", dragged)
-          .on("end", dragended))
-        .on("click", function(event, d) {
-          event.stopPropagation();
-          toggleNodeSelection(d, d3.select(this));
-        });
-      nodeEnter.append("text")
-        .attr("text-anchor", "start")
-        .attr("dominant-baseline", "hanging")
-        .each(function(d) {
-          const lines = wrapLabel(d.label, 15);
-          d.lines = lines;
-          const textEl = d3.select(this);
-          textEl.selectAll("tspan")
-            .data(lines)
-            .enter()
-            .append("tspan")
-            .text(line => line)
-            .attr("x", 0)
-            .attr("dy", (line, i) => i === 0 ? "0em" : "1.2em");
-        });
-      nodeEnter.each(function(d) {
-        const textEl = d3.select(this).select("text");
-        textEl.attr("transform", null);
-        const bbox = textEl.node().getBBox();
-        d.width = bbox.width + padding * 2;
-        d.height = bbox.height + padding * 2;
-        d3.select(this).insert("rect", "text")
-          .attr("x", -d.width/2)
-          .attr("y", -d.height/2)
-          .attr("width", d.width)
-          .attr("height", d.height)
-          .attr("rx", 6)
-          .attr("ry", 6);
-        textEl.attr("transform", `translate(${-d.width/2 + padding}, ${-d.height/2 + padding})`);
-      });
-      nodeSelection = nodeEnter.merge(nodeSelection);
-      updatePositions();
-      updateGeneratedCode();
-    }
-    
-    function dragstarted(event, d) {
-      d3.select(this).raise();
-    }
-    function dragged(event, d) {
-      d.x = event.x;
-      d.y = event.y;
-      updatePositions();
-    }
-    function dragended(event, d) {
-      updatePositions();
-    }
-    
-    function loadMermaidCode() {
-      nodes = [];
-      links = [];
-      clearSelection();
-      nodeGroup.selectAll("*").remove();
-      linkGroup.selectAll("*").remove();
-      const code = document.getElementById("inputCode").value;
-      const lines = code.split("\n");
-      lines.forEach(line => {
-        line = line.trim();
-        if (line.startsWith("graph")) return;
-        if (line === "") return;
-        if (line.endsWith(";")) line = line.slice(0, -1);
-        if (line.includes("-->")) {
-          let parts = line.split("-->");
-          if (parts.length >= 2) {
-            let left = parts[0].trim();
-            let right = parts[1].trim();
-            let nodeRegex = /^([A-Za-z0-9_]+)(?:\s*[\[\(\{](.+)[\]\)\}])?$/;
-            let leftMatch = left.match(nodeRegex);
-            let rightMatch = right.match(nodeRegex);
-            if (leftMatch && rightMatch) {
-              let leftId = leftMatch[1];
-              let leftLabel = leftMatch[2] ? leftMatch[2].trim() : leftId;
-              let rightId = rightMatch[1];
-              let rightLabel = rightMatch[2] ? rightMatch[2].trim() : rightId;
-              if (!nodes.some(n => n.id === leftId)) {
-                nodes.push({ id: leftId, label: leftLabel });
-              }
-              if (!nodes.some(n => n.id === rightId)) {
-                nodes.push({ id: rightId, label: rightLabel });
-              }
-              links.push({
-                source: nodes.find(n => n.id === leftId),
-                target: nodes.find(n => n.id === rightId)
-              });
-            }
-          }
-        } else {
-          let nodeRegex = /^([A-Za-z0-9_]+)(?:\s*[\[\(\{](.+)[\]\)\}])?$/;
-          let nodeMatch = line.match(nodeRegex);
-          if (nodeMatch) {
-            let nodeId = nodeMatch[1];
-            let label = nodeMatch[2] ? nodeMatch[2].trim() : nodeId;
-            if (!nodes.some(n => n.id === nodeId)) {
-              nodes.push({ id: nodeId, label: label });
-            }
-          }
-        }
-      });
-      assignLayout();
-      updateGraph();
-    }
-    
-    function generateMermaidCode() {
-      let code = "graph TD;\n";
-      nodes.forEach(n => {
-        code += `${n.id}[${n.label}];\n`;
-      });
-      links.forEach(l => {
-        code += `${l.source.id}-->${l.target.id};\n`;
-      });
-      return code;
-    }
-    
-    function updateGeneratedCode() {
-      document.getElementById("generatedCode").value = generateMermaidCode();
-    }
-    
-    function newNode() {
-      clearSelection();
-      const label = prompt("Введите название нового блока:", "NewNode");
-      if (label && label.trim() !== "") {
-        const newId = label.replace(/\s+/g, "_") + "_" + Date.now();
-        nodes.push({ id: newId, label: label.trim(), x: width/2, y: height/2 });
-        updateGraph();
-      }
-    }
-    
-    function deleteSelected() {
-      if (selectedElements.length === 0) return;
-      selectedElements.forEach(el => {
-        if (nodes.indexOf(el) !== -1) {
-          nodes = nodes.filter(n => n !== el);
-          links = links.filter(l => l.source !== el && l.target !== el);
-        } else {
-          links = links.filter(l => l !== el);
-        }
-      });
-      clearSelection();
-      updateGraph();
-    }
-    
-    function linkSelected() {
-      const selectedNodes = selectedElements.filter(el => nodes.indexOf(el) !== -1);
-      if (selectedNodes.length !== 2) {
-        alert("Выберите два блока для связи.");
+
+    function loop(t) {
+      const dt = t - last;
+      last = t;
+      acc += dt;
+      if (acc < FRAME) {
+        requestAnimationFrame(loop);
         return;
       }
-      links.push({
-        source: selectedNodes[0],
-        target: selectedNodes[1]
-      });
-      clearSelection();
-      updateGraph();
+      acc %= FRAME;
+
+      const cols = canvas.width  / CELL;
+      const rows = canvas.height / CELL;
+      const cx   = cols / 2;
+      const cy   = rows / 2;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.font = `${CELL}px 'Press Start 2P'`;
+      ctx.textBaseline = 'top';
+
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          const n = noise(x * NOISE_S, y * NOISE_S, 1 + Math.sin(t * 0.00012));
+          const dx = x + (n - 0.5) * 4;
+          const dy = y + (n - 0.5) * 4;
+          const d  = Math.hypot(dx - cx, dy - cy);
+          const w  = (Math.sin(d * 0.2 - t * 0.0009) + 1) / 2;
+
+          const palette = w < 0.3 ? PAL_LOW : w < 0.7 ? PAL_MID : PAL_HIGH;
+          const ch   = palette[Math.floor(w * palette.length * 3) % palette.length];
+          const hue  = 180 + w * 150;
+          const lum  = 20 + w * 40;
+
+          ctx.fillStyle = `hsl(${hue},90%,${lum}%)`;
+          ctx.fillText(ch, x * CELL, y * CELL);
+        }
+      }
+
+      requestAnimationFrame(loop);
     }
-    
-    document.addEventListener("keydown", function(event) {
-      if (event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA") return;
-      if (event.key.toLowerCase() === "n") {
-        event.preventDefault();
-        newNode();
-      }
-      if (event.key.toLowerCase() === "q") {
-        event.preventDefault();
-        linkSelected();
-      }
-      if (event.key === "Delete") {
-        event.preventDefault();
-        deleteSelected();
-      }
-    });
-    
-    svg.on("click", function(event) {
-      if (event.target === svg.node()) {
-        clearSelection();
-      }
-    });
-    
-    document.getElementById("loadCodeBtn").addEventListener("click", loadMermaidCode);
-    document.getElementById("newNodeBtn").addEventListener("click", newNode);
-    document.getElementById("deleteBtn").addEventListener("click", deleteSelected);
-    document.getElementById("linkBtn").addEventListener("click", linkSelected);
-    
-    loadMermaidCode();
+
+    requestAnimationFrame(loop);
   </script>
 </body>
 </html>
